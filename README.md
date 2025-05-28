@@ -1,18 +1,11 @@
-# create-svelte
+# Floorfitter frontend
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
+![image](https://github.com/user-attachments/assets/bbf6426f-1823-4dc3-9ceb-713a49a229cc)
 
-## Creating a project
+Svelte app for visualising & calculating floor layouts with varying-length floorboards.
 
-If you're seeing this, you've probably already done this step. Congrats!
 
-```bash
-# create a new project in the current directory
-npm create svelte@latest
-
-# create a new project in my-app
-npm create svelte@latest my-app
-```
+Below is from `create-svelte-app`
 
 ## Developing
 
