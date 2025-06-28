@@ -1,5 +1,5 @@
 <script lang="js">
-	import sample from 'lodash/sample';
+	import last from 'lodash/last';
 	import { sortedGroups, boardColors } from '../constants';
 
 	/**
@@ -30,7 +30,7 @@
 	const positionYPixels = `${position.y}px`;
 
 	const colorIndex = sortedGroups.indexOf(boardGroup);
-	const boardColor = boardColors[colorIndex];
+	const boardColor = boardColors[colorIndex] || last(boardColors);
 	const fromClass = `from-${boardColor}-800`;
 	const toClass = `to-${boardColor}-500`;
 

@@ -16,123 +16,10 @@ import { saveAs } from 'file-saver';
 import { array_move } from './lib';
 import { groupInfo, CHIMNEY_BREAST } from '../constants';
 
-class Floorboard {
-	constructor(lengthGroup, offset = 0) {
-		this._lengthGroup = lengthGroup;
-		this._length = parseInt(groupInfo[lengthGroup][0], 10);
-		this._offset = offset;
-	}
+import { Floorboard, FloorboardRow } from './FloorboardRow';
 
-	get length() {
-		return this._length;
-	}
+import { totalConsecutives } from './consecutives';
 
-	get lengthGroup() {
-		return this._lengthGroup;
-	}
-
-	get offset() {
-		return this._offset;
-	}
-
-	set offset(val) {
-		this._offset = val;
-	}
-}
-
-export class FloorboardRow {
-	constructor(length, index, floorboards = []) {
-		this._capacity = length;
-		this._floorboards = floorboards;
-		this._index = index;
-	}
-
-	get capacity() {
-		return this._capacity;
-	}
-
-	get currentFill() {
-		return this.floorboards.reduce((accum, floorboard) => accum + floorboard.length, 0);
-	}
-
-	get currentFillproportion() {
-		return this.currentFill / this._capacity;
-	}
-
-	get index() {
-		return this._index;
-	}
-
-	get floorboards() {
-		return this._floorboards;
-	}
-
-	set floorboards(val) {
-		this._floorboards = val;
-	}
-
-	set index(val) {
-		this._index = val;
-	}
-
-	projectedFill(floorboard) {
-		return this.currentFill + floorboard.length;
-	}
-
-	projectedFillProportion(floorboard) {
-		return this.projectedFill(floorboard) / this._capacity;
-	}
-
-	addFloorboard(floorboard) {
-		this.floorboards.push(new Floorboard(floorboard.lengthGroup, this.currentFill));
-	}
-
-	get consecutives() {
-		return countConsecutives(this.floorboards);
-	}
-
-	// matchesRow(siblingRow) {
-	// 	const siblingBoards = siblingRow?.floorboards || [];
-	// 	return isEmpty(siblingBoards)
-	// 		? false
-	// 		: this.floorboards.some((boardFromThis) =>
-	// 			siblingBoards.some(
-	// 				(siblingBoard) =>
-	// 				(boardFromThis.lengthGroup === siblingBoard.lengthGroup &&
-	// 					boardFromThis.offset === siblingBoard.offset)
-	// 			)
-	// 		);
-	// }
-
-	// matchesSiblings(prev, next) {
-	// 	console.log('Checking if', this, 'matches', prev, 'or', next);
-	// 	const [matchesPrev, matchesNext] = [prev, next].map(this.matchesRow.bind(this));
-	// 	if (matchesPrev || matchesNext) console.log(this._index, 'Matches!', matchesPrev, matchesNext);
-
-	// 	return matchesPrev || matchesNext;
-	// }
-
-
-	matchesSiblings(allRows) {
-		return this.matchingBoards(allRows).length > 0;
-	}
-
-	static hasBoard(boards, specimen) {
-		const match = boards.some((board) => board.lengthGroup === specimen.lengthGroup && board.offset === specimen.offset);
-		// if (match) console.log("Found a match!", specimen, find(boards, (board) => board.lengthGroup === specimen.lengthGroup && board.offset === specimen.offset));
-		return match;
-	}
-
-	matchingBoards(allRows) {
-		const [prevBoards, nextBoards] = [this._index - 1, this._index + 1].map((i) => allRows[i]?.floorboards || []);
-		const matchedIndices = map(this.floorboards, (thisBoard, i) => FloorboardRow.hasBoard(prevBoards, thisBoard) || FloorboardRow.hasBoard(nextBoards, thisBoard) ? i : false);
-
-		const finalMatches = filter(matchedIndices, (val) => val !== false);
-		// if (finalMatches.length > 0) console.log("Matching boards for ", this._index, this._floorboards, "and", prevBoards, nextBoards, "are ", finalMatches);
-
-		return finalMatches;
-	}
-}
 
 export const createFloorboards = () => {
 	let floorboards = [];
@@ -183,12 +70,10 @@ export const fitFloorboards = (floorboards, roomWidthStr, roomLengthStr, boardWi
 
 	const allRows = [
 		...fullRows,
-		...allPartialRows.map((rowLength, i) => new FloorboardRow(rowLength, i + fullRows.length))
+		//...allPartialRows.map((rowLength, i) => new FloorboardRow(rowLength, i + fullRows.length))
 	];
 
 	// const thinRowWidth = numRows - Math.floor(numRows);
-
-	// @todo FIREPLACE!!!
 
 	// Implement "best fit" algorithm
 	const fittedFloor = bestFitFloor(floorboards, allRows);
@@ -219,7 +104,11 @@ const moveFittedConsecs = (fittedFloor) => {
 }
 
 export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
-	let floorboardStock = [...floorboards];
+	let floorboardStock = [
+		...floorboards.filter((fb) => fb.isInnerPiece),
+		...floorboards.filter((fb) => !fb.isInnerPiece)
+	];	// Make sure non-inner pieces are at the end
+
 	let fittedRows = [...floorboardRows];
 	let excessFloorboards = [];
 
@@ -246,29 +135,21 @@ export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 		}
 	}
 
+	console.log("Excess floorboards:", excessFloorboards);
+
 	return fittedRows;
 };
 
 const findBestFitForRow = (floorboardRow, currentFloorboard, remainingFloorboards, tolerance) => {
 	let currentTolerance = tolerance;
 
-	// if projection falls short and there is another board that will fit, ignore tolerance
-	const smallestRemainingBoardLength =
-		min(map(remainingFloorboards, 'length')) || currentFloorboard.length;
-	const projectionFallsShort =
-		floorboardRow.capacity - floorboardRow.projectedFill(currentFloorboard) <
-		smallestRemainingBoardLength;
-
-	// if (projectionFallsShort) {
-	// 	return false;
-	// }
-
 	const isProjectionWithinTolerance =
-		floorboardRow.projectedFillProportion(currentFloorboard) < 1.0 + currentTolerance;
-	const rowIsNotFull = floorboardRow.currentFillproportion < 1.0;
+		floorboardRow.canCompleteRow(currentFloorboard, tolerance);
+
+	const rowIsNotFull = floorboardRow.isUnfinished();
 
 	if (rowIsNotFull) {
-		if (isProjectionWithinTolerance && rowIsNotFull) {
+		if (isProjectionWithinTolerance) {
 			// See if any other floorboard would fit better
 			const currentProjectedFill = floorboardRow.projectedFill(currentFloorboard);
 
@@ -286,10 +167,13 @@ const findBestFitForRow = (floorboardRow, currentFloorboard, remainingFloorboard
 				}
 			}
 			return true;
-		}
+		} else {
+			// If not in tolerance but there are no more boards that will fit, we might just have to use this one...
 
-		// If not in tolerance but there are no more boards that will fit, use this one
-		if (!isProjectionWithinTolerance) {
+			// Get smallest available board
+			const smallestRemainingBoardLength =
+				min(map(remainingFloorboards, 'length')) || currentFloorboard.length;
+
 			if (smallestRemainingBoardLength >= currentFloorboard.length) {
 				return true;
 			}
@@ -299,24 +183,6 @@ const findBestFitForRow = (floorboardRow, currentFloorboard, remainingFloorboard
 	return false;
 };
 
-export const countConsecutives = (floorboards) => {
-	let prev = '';
-	const consecs = {};
-
-	floorboards.forEach((fb) => {
-		const lg = fb.lengthGroup;
-		if (lg === prev) {
-			consecs[lg] = (consecs[lg] || 0) + 1;
-		}
-		prev = lg;
-	});
-
-	return consecs;
-};
-
-const totalConsecutives = (floorboards) => {
-	return sum(values(countConsecutives(floorboards)));
-};
 
 export const moveConsec = (floorboards) => {
 	let consecIndex;

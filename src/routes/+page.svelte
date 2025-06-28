@@ -8,14 +8,14 @@
 	import FloorboardRow from '../components/FloorboardRow.svelte';
 	import FloorboardFileInput from '../components/FloorboardFileInput.svelte';
 	import {
-		FloorboardRow as FloorboardRowClass,
 		createFloorboards,
 		shuffleFloorboards,
 		fitFloorboards,
-		countConsecutives,
 		saveFloorboardsUrl,
 		parseToFittedFloor
 	} from '../lib/index';
+	import { countConsecutives } from '../lib/consecutives';
+	import { FloorboardRow as FloorboardRowClass } from '../lib/FloorboardRow';
 	import {
 		roomWidthStr,
 		roomLengthStr,
