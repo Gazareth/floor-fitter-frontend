@@ -105,15 +105,14 @@ const moveFittedConsecs = (fittedFloor) => {
 
 export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 	let floorboardStock = [
+		// Prefer start & end pieces first
+		...floorboards.filter((fb) => fb.isStartPiece),
+		...floorboards.filter((fb) => fb.isEndPiece),
 		...floorboards.filter((fb) => fb.isInnerPiece),
-		...floorboards.filter((fb) => !fb.isInnerPiece)
 	];	// Make sure non-inner pieces are at the end
 
 	let fittedRows = [...floorboardRows];
 	let excessFloorboards = [];
-
-	// floorboardStock = orderBy(floorboardStock, (floorboard) => parseInt(floorboard.length, 10), "desc");
-	// floorboardStock = shuffle(floorboardStock);
 
 	while (floorboardStock.length > 0) {
 		const floorboard = floorboardStock[0];
@@ -143,13 +142,28 @@ export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 const findBestFitForRow = (floorboardRow, currentFloorboard, remainingFloorboards, tolerance) => {
 	let currentTolerance = tolerance;
 
-	const isProjectionWithinTolerance =
-		floorboardRow.canCompleteRow(currentFloorboard, tolerance);
+	console.log("FINDING FIT FOR", currentFloorboard, "in row", floorboardRow.index);
 
-	const rowIsNotFull = floorboardRow.isUnfinished();
+	// Only use start pieces at the start :)
+	if (currentFloorboard.isStartPiece) {
+		if (floorboardRow.isEmpty) {
+			return true;
+		} else {
+			return false;
+		}
+	}
 
-	if (rowIsNotFull) {
-		if (isProjectionWithinTolerance) {
+	// If it's an end piece and it'll take us over capacity, we can use it
+	if (currentFloorboard.isEndPiece) {
+		if (floorboardRow.willOverfillRow(currentFloorboard)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	if (floorboardRow.isUnfinished) {
+		if (floorboardRow.canCompleteRow(currentFloorboard, tolerance)) {
 			// See if any other floorboard would fit better
 			const currentProjectedFill = floorboardRow.projectedFill(currentFloorboard);
 

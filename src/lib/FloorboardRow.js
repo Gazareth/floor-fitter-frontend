@@ -85,7 +85,11 @@ export class FloorboardRow {
         this._index = val;
     }
 
-    isUnfinished() {
+    get isEmpty() {
+        return this.floorboards.length === 0;
+    }
+
+    get isUnfinished() {
         return this.currentFillproportion < 1.0;
     }
 
@@ -98,8 +102,13 @@ export class FloorboardRow {
     }
 
     canCompleteRow(floorboard, tolerance) {
-        if (!this.isUnfinished()) return false;
+        if (!this.isUnfinished) return false;
         return this.projectedFillProportion(floorboard) < (1.0 + tolerance);
+    }
+
+    willOverfillRow(floorboard) {
+        if (!this.isUnfinished) return false;
+        return this.projectedFillProportion(floorboard) > 1.0;
     }
 
     addFloorboard(floorboard) {
