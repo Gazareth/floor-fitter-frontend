@@ -7,7 +7,7 @@ const expansionGap = 1.2;
 
 export const roomWidthStr = `${roomWidthRaw - 2 * expansionGap}`;
 export const roomLengthStr = `${roomLengthRaw - 2 * expansionGap}`;
-export const boardWidthStr = '12.25';
+export const boardWidthStr = '12.2';
 
 export const CHIMNEY_BREAST = {
 	width: 0,

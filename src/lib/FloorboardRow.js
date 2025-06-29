@@ -101,14 +101,15 @@ export class FloorboardRow {
         return this.projectedFill(floorboard) / this._capacity;
     }
 
-    canCompleteRow(floorboard, tolerance) {
+    // Can safely add to the row without going over tolerance
+    canJoinRow(floorboard, tolerance) {
         if (!this.isUnfinished) return false;
         return this.projectedFillProportion(floorboard) < (1.0 + tolerance);
     }
 
     willOverfillRow(floorboard) {
         if (!this.isUnfinished) return false;
-        return this.projectedFillProportion(floorboard) > 1.0;
+        return this.projectedFill(floorboard) > this._capacity;
     }
 
     addFloorboard(floorboard) {

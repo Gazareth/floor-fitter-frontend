@@ -106,23 +106,61 @@ const moveFittedConsecs = (fittedFloor) => {
 export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 	let floorboardStock = [
 		// Prefer start & end pieces first
-		...floorboards.filter((fb) => fb.isStartPiece),
-		...floorboards.filter((fb) => fb.isEndPiece),
 		...floorboards.filter((fb) => fb.isInnerPiece),
+		// ...floorboards.filter((fb) => fb.isEndPiece),
 	];	// Make sure non-inner pieces are at the end
+
+	let startPieces = [...floorboards.filter((fb) => fb.isStartPiece)];
+	let endPieces = [...floorboards.filter((fb) => fb.isEndPiece)].sort((a, b) => a.length - b.length);
 
 	let fittedRows = [...floorboardRows];
 	let excessFloorboards = [];
 
 	while (floorboardStock.length > 0) {
 		const floorboard = floorboardStock[0];
-		const foundFloorboardRowIndex = findIndex(fittedRows, (fittedRow) =>
-			findBestFitForRow(fittedRow, floorboard, floorboardStock, tolerance)
-		);
-		const foundFloorboardRow = fittedRows[foundFloorboardRowIndex];
+		let foundRowIndex = -1;
+
+		for (let i = 0; i < fittedRows.length; i++) {
+			const fittedRow = fittedRows[i];
+			if (fittedRow.isFull) {
+				console.log("Row is full, skipping", i);
+				continue;
+			}
+
+			// If this row is empty, we can just add the start piece
+			if (fittedRow.isEmpty) {
+				if (startPieces.length > 0) {
+					fittedRow.addFloorboard(startPieces.shift());
+				} else {
+					console.log("Row is empty, but no start pieces left", i);
+				}
+			} else {
+				// See if any end pieces will finish the row
+				const endPieceIndex = endPieces.findIndex((endPiece) => {
+					return fittedRow.willOverfillRow(endPiece, tolerance);
+				});
+
+				if (endPieceIndex > -1) {
+					const [endPiece] = endPieces.splice(endPieceIndex, 1);
+					fittedRow.addFloorboard(endPiece);
+					console.log("Adding endpiece to row", i, endPiece);
+					continue;
+				} else {
+					console.log("No end piece will fit in row", i);
+				}
+			}
+
+			if (shouldJoinRow(fittedRow, floorboard, floorboardStock, tolerance)) {
+				console.log("Joining row", i, "with floorboard", floorboard);
+				foundRowIndex = i;
+				continue; // try next row
+			}
+		}
+
+		const foundFloorboardRow = fittedRows[foundRowIndex];
 
 		if (foundFloorboardRow) {
-			foundFloorboardRow.addFloorboard(floorboardStock.shift(), foundFloorboardRowIndex);
+			foundFloorboardRow.addFloorboard(floorboardStock.shift());
 		} else {
 			// console.error(
 			// 	'Could not find a row with enough room for floorboard',
@@ -139,58 +177,35 @@ export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 	return fittedRows;
 };
 
-const findBestFitForRow = (floorboardRow, currentFloorboard, remainingFloorboards, tolerance) => {
-	let currentTolerance = tolerance;
+const shouldJoinRow = (floorboardRow, currentFloorboard, remainingFloorboards, tolerance) => {
 
-	console.log("FINDING FIT FOR", currentFloorboard, "in row", floorboardRow.index);
+	if (floorboardRow.canJoinRow(currentFloorboard, tolerance)) {
+		// See if any other floorboard would fit better
+		const currentProjectedFill = floorboardRow.willOverfillRow(currentFloorboard);
 
-	// Only use start pieces at the start :)
-	if (currentFloorboard.isStartPiece) {
-		if (floorboardRow.isEmpty) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	// If it's an end piece and it'll take us over capacity, we can use it
-	if (currentFloorboard.isEndPiece) {
-		if (floorboardRow.willOverfillRow(currentFloorboard)) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-
-	if (floorboardRow.isUnfinished) {
-		if (floorboardRow.canCompleteRow(currentFloorboard, tolerance)) {
-			// See if any other floorboard would fit better
-			const currentProjectedFill = floorboardRow.projectedFill(currentFloorboard);
-
-			// But only if this one brings us to over capacity
-			if (currentProjectedFill > floorboardRow.capacity) {
-				// Look for another floorboard that might fit better
-				const potentialBetterFit = find(remainingFloorboards, (potentialFloorboard) => {
-					const potentialProjected = floorboardRow.projectedFill(potentialFloorboard);
-					return (
-						potentialProjected > floorboardRow.capacity && potentialProjected < currentProjectedFill
-					);
-				});
-				if (potentialBetterFit) {
-					return false;
-				}
+		// But only if this one brings us to over capacity
+		if (currentProjectedFill > floorboardRow.capacity) {
+			// Look for another floorboard that might fit better
+			const potentialBetterFit = find(remainingFloorboards, (potentialFloorboard) => {
+				const potentialProjected = floorboardRow.projectedFill(potentialFloorboard);
+				return (
+					floorboardRow.willOverfillRow(potentialFloorboard) && potentialProjected < currentProjectedFill
+				);
+			});
+			if (potentialBetterFit) {
+				return false;
 			}
+		}
+		return true;
+	} else {
+		// If not in tolerance but there are no more boards that will fit, we might just have to use this one...
+
+		// Get smallest available board
+		const smallestRemainingBoardLength =
+			min(map(remainingFloorboards, 'length')) || currentFloorboard.length;
+
+		if (smallestRemainingBoardLength >= currentFloorboard.length) {
 			return true;
-		} else {
-			// If not in tolerance but there are no more boards that will fit, we might just have to use this one...
-
-			// Get smallest available board
-			const smallestRemainingBoardLength =
-				min(map(remainingFloorboards, 'length')) || currentFloorboard.length;
-
-			if (smallestRemainingBoardLength >= currentFloorboard.length) {
-				return true;
-			}
 		}
 	}
 
