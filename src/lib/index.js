@@ -122,7 +122,7 @@ export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 
 		for (let i = 0; i < fittedRows.length; i++) {
 			const fittedRow = fittedRows[i];
-			if (fittedRow.isFull) {
+			if (!fittedRow.isUnfinished) {
 				console.log("Row is full, skipping", i);
 				continue;
 			}
@@ -130,7 +130,9 @@ export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 			// If this row is empty, we can just add the start piece
 			if (fittedRow.isEmpty) {
 				if (startPieces.length > 0) {
-					fittedRow.addFloorboard(startPieces.shift());
+					const startPiece = startPieces.shift();
+					fittedRow.addFloorboard(startPiece);
+					console.log("Adding start piece to row", i, startPiece.lengthGroup);
 				} else {
 					console.log("Row is empty, but no start pieces left", i);
 				}
@@ -151,15 +153,16 @@ export const bestFitFloor = (floorboards, floorboardRows, tolerance = 0.05) => {
 			}
 
 			if (shouldJoinRow(fittedRow, floorboard, floorboardStock, tolerance)) {
-				console.log("Joining row", i, "with floorboard", floorboard);
+				// console.log("Joining row", i, "with floorboard", floorboard);
 				foundRowIndex = i;
-				continue; // try next row
+				break; // try next row
 			}
 		}
 
 		const foundFloorboardRow = fittedRows[foundRowIndex];
 
 		if (foundFloorboardRow) {
+			console.log("adding floorboard to row", foundRowIndex, floorboard.lengthGroup);
 			foundFloorboardRow.addFloorboard(floorboardStock.shift());
 		} else {
 			// console.error(
@@ -205,6 +208,7 @@ const shouldJoinRow = (floorboardRow, currentFloorboard, remainingFloorboards, t
 			min(map(remainingFloorboards, 'length')) || currentFloorboard.length;
 
 		if (smallestRemainingBoardLength >= currentFloorboard.length) {
+			console.log("Reluctantly joining row", floorboardRow.index, "with floorboard", currentFloorboard.lengthGroup);
 			return true;
 		}
 	}
